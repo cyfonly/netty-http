@@ -1,0 +1,15 @@
+option java_package = "com.decoder.protobuf"; 
+option java_outer_classname = "UserProbuf"; 
+
+message User
+{
+	enum Sex{
+  		F = 0;
+  		M = 1;
+  	}
+  
+  	required int32 id = 1;
+  	required string name = 2;
+  	required Sex sex = 3;
+  
+}
