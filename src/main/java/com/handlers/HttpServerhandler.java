@@ -28,6 +28,7 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http.multipart.Attribute;
 import io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
 import io.netty.handler.codec.http.multipart.DiskFileUpload;
 import io.netty.handler.codec.http.multipart.FileUpload;
@@ -146,13 +147,23 @@ public class HttpServerhandler extends ChannelHandlerAdapter{
 			}
 			
 		}else if(contentType.equals("application/x-www-form-urlencoded")){
-			String jsonStr = fullRequest.content().toString(Charsets.toCharset(CharEncoding.UTF_8));
-			QueryStringDecoder queryDecoder = new QueryStringDecoder(jsonStr, false);
-			Map<String, List<String>> uriAttributes = queryDecoder.parameters();
-            for (Map.Entry<String, List<String>> attr : uriAttributes.entrySet()) {
-                for (String attrVal : attr.getValue()) {
-                    System.out.println(attr.getKey()+"="+attrVal);
-                }
+			//方式一：使用 QueryStringDecoder
+//			String jsonStr = fullRequest.content().toString(Charsets.toCharset(CharEncoding.UTF_8));
+//			QueryStringDecoder queryDecoder = new QueryStringDecoder(jsonStr, false);
+//			Map<String, List<String>> uriAttributes = queryDecoder.parameters();
+//            for (Map.Entry<String, List<String>> attr : uriAttributes.entrySet()) {
+//                for (String attrVal : attr.getValue()) {
+//                    System.out.println(attr.getKey() + "=" + attrVal);
+//                }
+//            }
+            //方式二：使用 HttpPostRequestDecoder
+			initPostRequestDecoder();
+			List<InterfaceHttpData> datas = decoder.getBodyHttpDatas();
+            for (InterfaceHttpData data : datas) {
+            	if(data.getHttpDataType() == HttpDataType.Attribute) {
+            		Attribute attribute = (Attribute) data;
+            		System.out.println(attribute.getName() + "=" + attribute.getValue());
+            	}
             }
             
 		}else if(contentType.equals("multipart/form-data")){  //用于文件上传
@@ -164,14 +175,9 @@ public class HttpServerhandler extends ChannelHandlerAdapter{
 	}
 	
 	private void readHttpDataAllReceive() throws Exception{
-		List<InterfaceHttpData> datas;
-		if (decoder != null) {  
-            decoder.cleanFiles();  
-            decoder = null;  
-        }
+		initPostRequestDecoder();
 		try {
-			decoder = new HttpPostRequestDecoder(factory, request, Charsets.toCharset(CharEncoding.UTF_8));
-            datas = decoder.getBodyHttpDatas();
+			List<InterfaceHttpData> datas = decoder.getBodyHttpDatas();
             for (InterfaceHttpData data : datas) {
                 writeHttpData(data);
             }
@@ -203,6 +209,14 @@ public class HttpServerhandler extends ChannelHandlerAdapter{
 		String typeStr = headers.get("Content-Type").toString();
 		String[] list = typeStr.split(";");
 		return list[0];
+	}
+	
+	private void initPostRequestDecoder(){
+		if (decoder != null) {  
+            decoder.cleanFiles();  
+            decoder = null;  
+        }
+		decoder = new HttpPostRequestDecoder(factory, request, Charsets.toCharset(CharEncoding.UTF_8));
 	}
 
 }
