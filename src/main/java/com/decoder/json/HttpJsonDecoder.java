@@ -15,7 +15,7 @@ import io.netty.handler.codec.http.HttpRequest;
 /**
  * HTTP JSON 解码器，将 HTTP message body 反序列化为 JSONObject
  * 
- * 使用方法（以当前目录下的UserProtobuf为例）：
+ * 使用方法：
  * HttpServer 中：
  * 		.addLast("jsonDecoder", new HttpJsonDecoder())
  * HttpServerhandler channelRead 方法中：
