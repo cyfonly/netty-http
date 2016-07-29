@@ -16,10 +16,10 @@ import com.decoder.protobuf.UserProbuf;
 public class HttpTest {
 	
 	public static void main(String[] args) throws Exception{
-//		sendGet();
+		sendGet();
 //		sendPostJson();
 //		sendPostForm();
-		sendProtobuf();
+//		sendProtobuf();
 	}
 	
 	private static void sendPostJson() throws Exception{
@@ -34,6 +34,7 @@ public class HttpTest {
         java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
+        conn.setRequestProperty("Connection", "keep-alive");
         conn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
         conn.setRequestProperty("Content-Length", String.valueOf(data.length));
         OutputStream outStream = conn.getOutputStream();
@@ -57,6 +58,7 @@ public class HttpTest {
         java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
         conn.setRequestMethod("POST");
         conn.setDoOutput(true);
+        conn.setRequestProperty("Connection", "close");
         conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
         conn.setRequestProperty("Content-Length", String.valueOf(data.length));
         OutputStream outStream = conn.getOutputStream();

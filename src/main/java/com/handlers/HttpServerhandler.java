@@ -8,14 +8,15 @@ import java.util.Map.Entry;
 import org.aeonbits.owner.ConfigFactory;
 import org.apache.commons.codec.CharEncoding;
 import org.apache.commons.codec.Charsets;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.config.ServerConf;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerAdapter;
 import io.netty.channel.ChannelHandlerContext;
@@ -45,18 +46,20 @@ import io.netty.util.ReferenceCountUtil;
  */
 public class HttpServerhandler extends ChannelHandlerAdapter{
 	
-	private static final Logger logger = LoggerFactory.getLogger(HttpServerhandler.class);
 	private static ServerConf cfg;
 	
 	private HttpHeaders headers;
 	private HttpRequest request;
 	private FullHttpResponse response;
 	private FullHttpRequest fullRequest;
-	
 	private HttpPostRequestDecoder decoder;
 	private static final HttpDataFactory factory = new DefaultHttpDataFactory(DefaultHttpDataFactory.MAXSIZE);
     
     private static final String FAVICON_ICO = "/favicon.ico";
+    private static final String SUCCESS = "success";
+    private static final String ERROR = "error";
+    private static final String CONNECTION_KEEP_ALIVE = "keep-alive";
+    private static final String CONNECTION_CLOSE = "close";
     
     
     static{
@@ -103,18 +106,14 @@ public class HttpServerhandler extends ChannelHandlerAdapter{
 					//根据不同的 Content_Type 处理 body 数据
 					dealWithContentType();
 				}else{
-					
 					//其他类型在此不做处理，需要的话可自己扩展
 				}
 				
-				//此处只是简单返回 "success"[200]响应码，你可以根据业务需求及约束返回其他响应码。其他响应同理
-				packResponse(HttpResponseStatus.OK);
-				ctx.write(response).addListener(ChannelFutureListener.CLOSE);
+				writeResponse(ctx.channel(), HttpResponseStatus.OK, SUCCESS, false);
 				
 			}catch(Exception e){
-				logger.error("HttpServerHandler error...", e);
-				packResponse(HttpResponseStatus.INTERNAL_SERVER_ERROR);
-				ctx.write(response).addListener(ChannelFutureListener.CLOSE);
+				writeResponse(ctx.channel(), HttpResponseStatus.INTERNAL_SERVER_ERROR, ERROR, true);
+				
 			}finally{
 				ReferenceCountUtil.release(msg);
 			}
@@ -201,8 +200,17 @@ public class HttpServerhandler extends ChannelHandlerAdapter{
     	}
 	}
 	
-	private void packResponse(HttpResponseStatus status){
-		response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, Unpooled.EMPTY_BUFFER);
+	private void writeResponse(Channel channel, HttpResponseStatus status, String msg, boolean forceClose){
+		ByteBuf byteBuf = Unpooled.wrappedBuffer(msg.getBytes());
+		response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, byteBuf);
+		boolean close = isClose();
+		if(!close && !forceClose){
+			response.headers().add(org.apache.http.HttpHeaders.CONTENT_LENGTH, String.valueOf(byteBuf.readableBytes()));
+		}
+		ChannelFuture future = channel.write(response);
+		if(close || forceClose){
+			future.addListener(ChannelFutureListener.CLOSE);
+		}
 	}
 	
 	private String getContentType(){
@@ -217,6 +225,14 @@ public class HttpServerhandler extends ChannelHandlerAdapter{
             decoder = null;  
         }
 		decoder = new HttpPostRequestDecoder(factory, request, Charsets.toCharset(CharEncoding.UTF_8));
+	}
+	
+	private boolean isClose(){
+		if(request.headers().contains(org.apache.http.HttpHeaders.CONNECTION, CONNECTION_CLOSE, true) ||
+				(request.protocolVersion().equals(HttpVersion.HTTP_1_0) && 
+				!request.headers().contains(org.apache.http.HttpHeaders.CONNECTION, CONNECTION_KEEP_ALIVE, true)))
+			return true;
+		return false;
 	}
 
 }
