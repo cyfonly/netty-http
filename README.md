@@ -4,7 +4,6 @@ Netty HTTP 协议栈的简单实践
 
 #TODO LIST
 1. 消息路由（命名空间和请求分发）—— 已实现，请看[nettp](https://github.com/cyfonly/nettp)
-2. chunked传输编码
 
 
 #相关文章
